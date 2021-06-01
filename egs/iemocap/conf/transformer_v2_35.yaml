@@ -1,0 +1,71 @@
+data:
+  name: v2_35
+  data_folder: './egs/speech_commands'
+  labels: ['hap','exc','sad','ang','neu']
+  scp_file: ./egs/iemocap/fbank/train_sp/feats.scp
+  text_file: ./egs/iemocap/fbank/train_sp/text
+  cmvn_file: ./egs/iemocap/fbank/train_sp/global_cmvn
+
+dataset_conf:
+  kaldi_offline: True
+  kaldi_offline_conf:
+    feat_dim: 40
+    spec_augment: True
+    spec_augment_conf:
+        warp_for_time: False
+        num_t_mask: 2
+        num_f_mask: 2
+        max_t: 30
+        max_f: 10
+        max_w: 20
+    spec_substitute: True
+    spec_substitute_conf:
+      max_t: 20
+      num_t_sub: 3
+      
+
+model:
+  model_type: kws_transformer
+  model_params:
+    input_size: [98,40]
+    patch_size: [1,40]
+    channels: 1
+    num_classes: 35
+    dim: 64
+    depth: 12
+    dim_head: 64
+    heads: 3
+    mlp_dim: 256
+    dropout: 0.1
+    emb_dropout: 0.1    
+    pool: 'cls'
+    label_smoothing: 0.1
+train:
+  optimizer_type: adam
+  optimizer:
+    lr: 0.001
+    betas: [0.9, 0.98]
+    eps: 1.0e-9
+    weight_decay: 1.0e-6
+    amsgrad: False
+  scheduler_type: transformer
+  scheduler:
+    model_size: 64
+    warmup_steps: 10000
+    factor: 0.8
+  clip_grad: 5
+  epochs: 80
+  accum_steps: 4
+  grad_noise: 0.0
+  load_model: False
+  batch_size: 128
+  model_dir: transformer_v2_35_kaldi_offline
+  exp_dir: './egs/speech_commands/exp'
+  
+eval:
+  average_model:
+    dst_model: 'average_final.pt'
+    num: 5
+    val_best: True
+    min_epoch: 5
+    max_epoch: 10000
