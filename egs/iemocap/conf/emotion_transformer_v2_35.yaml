@@ -10,7 +10,7 @@ dataset_conf:
   kaldi_offline: True
   kaldi_offline_conf:
     feat_dim: 40
-    spec_augment: True
+    spec_augment: False
     spec_augment_conf:
         warp_for_time: False
         num_t_mask: 2
@@ -18,11 +18,11 @@ dataset_conf:
         max_t: 10
         max_f: 5
         max_w: 10
-    spec_substitute: True
+    spec_substitute: False
     spec_substitute_conf:
       max_t: 10
       num_t_sub: 2
-    max_frames: 1000
+    max_frames: 750
     max_tokens: 50
     fixed_feats: True
 
@@ -30,25 +30,20 @@ dataset_conf:
 model:
   audio_only: True
   audio_model_settings:
-    model_type: self_attention
+    model_type: emotion_transformer
     model_params:
-      input_size: 40
-      cnn_conf:
-        num_layers: 2
-        filters: [64,64]
-        kernel_sizes: [3,3]
-        strides: [2,1]
-      rnn_conf:
-        num_layers: 2
-        hidden_units: 60
-        bidirection: True
-      attention_conf:
-        heads: 8
-        dim_head: 64
-        mlp_dim: 64
+      input_size: [750,40]
+      patch_size: [5,40]
+      channels: 1
       num_classes: 4
-      max_frames: 750
-      max_tokens: 50
+      dim: 64
+      depth: 12
+      dim_head: 64
+      heads: 4
+      mlp_dim: 256
+      dropout: 0.1
+      emb_dropout: 0.1    
+      pool: 'mean'
   
   text_only: False
   multi_modal: False
@@ -61,17 +56,19 @@ train:
     eps: 1.0e-9
     weight_decay: 1.0e-6
     amsgrad: False
-  scheduler_type: constant
+  scheduler_type: transformer
   scheduler:
-    lr: 0.001
+    model_size: 64
+    warmup_steps: 1000
+    factor: 0.8
   
   clip_grad: 5
   epochs: 80
   accum_steps: 4
   grad_noise: 0.0
   load_model: False
-  batch_size: 40
-  model_dir: transformer_v2_35_kaldi_offline
+  batch_size: 10
+  model_dir: emotion_transformer
   exp_dir: './egs/iemocap/exp'
   
 eval:

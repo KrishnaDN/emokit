@@ -211,6 +211,12 @@ class PreProcessor(Augmentation):
 
 
 
+
+
+
+
+
+
 class CollateFunc(Augmentation):
     """ Collate function for AudioDataset
     """
@@ -220,6 +226,9 @@ class CollateFunc(Augmentation):
                  spec_augment_conf=None,
                  spec_substitute=True,
                  spec_substitute_conf=None,
+                 max_frames = None,
+                 max_tokens = None,
+                 fixed_feats = False,
                  mode='train'):
         
         self.spec_augment = spec_augment
@@ -227,10 +236,12 @@ class CollateFunc(Augmentation):
         self.spec_substitute = True
         self.spec_substitute_conf = spec_substitute_conf
         self.mode = mode
+        self.fixed_feats = fixed_feats
+        self.max_frames = max_frames
+        self.max_tokens = max_tokens
         
         
     def __call__(self, batch):
-        
         feats = [x[0] for x in batch]
         tokens = [x[1] for x in batch]
         labels = [x[2] for x in batch]
@@ -245,14 +256,27 @@ class CollateFunc(Augmentation):
                 feats.extend(spec_augs)
                 tokens.extend([x[1] for x in batch])
                 labels.extend([x[2] for x in batch])
-            feats_pad = pad_sequence([torch.from_numpy(x) for x in feats], True, 0)
+            feats_pad = pad_sequence([torch.from_numpy(x) for x in feats], True, 0).float()
             text_tokens_pad = pad_sequence([torch.LongTensor(x) for x in tokens], True, 0)
             labels = torch.LongTensor([x for x in labels])
         else:
-            feats_pad = pad_sequence([torch.from_numpy(x) for x in feats], True, 0)
+            feats_pad = pad_sequence([torch.from_numpy(x) for x in feats], True, 0).float()
             text_tokens_pad = pad_sequence([torch.LongTensor(x) for x in tokens], True, 0) ### Note 0 is the PAD symbol for the tokenizer
             labels = torch.LongTensor([x for x in labels])
-        return feats_pad, text_tokens_pad,labels
+        
+        
+        if self.fixed_feats:
+            if feats_pad.shape[1]>=self.max_frames:
+                feats_pad = feats_pad[:,:self.max_frames,:]
+            else:
+                feats_pad = torch.cat((feats_pad,torch.zeros([feats_pad.shape[0],self.max_frames - feats_pad.shape[1], feats_pad.shape[2]])), dim=1)
+            
+            if text_tokens_pad.shape[1]>=self.max_tokens:
+                text_tokens_pad = text_tokens_pad[:,:self.max_tokens]
+            else:
+                text_tokens_pad = torch.cat((text_tokens_pad, torch.zeros([text_tokens_pad.shape[0], self.max_tokens - text_tokens_pad.shape[1]])), dim=1) 
+
+        return feats_pad[:,:self.max_frames,:].float(), text_tokens_pad[:self.max_tokens,:], labels
         
 
 
@@ -276,7 +300,7 @@ class KaldiDataset(Augmentation):
         feats = self._load_feature(ark_path)
         text_tokens = self.tokenizer(text)['input_ids']
         return feats, text_tokens, label
-
+        
 
 if __name__=='__main__':
     config_file = '/home/krishna/Krishna/emokit/egs/iemocap/conf/transformer_v2_35.yaml'
